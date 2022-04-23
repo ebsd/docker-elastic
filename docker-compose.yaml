@@ -1,0 +1,61 @@
+version: "3.9"
+services:
+  elasticsearch:
+    # https://www.elastic.co/guide/en/elasticsearch/reference/7.10/docker.html
+    container_name: elasticsearch
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.10.2
+    environment:
+      - node.name=elasticsearch
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - data01:/usr/share/elasticsearch/data
+    # I don't need to expose elsticsearch port outside docker
+    #ports:
+      #- 9200:9200
+    networks:
+      - elastic
+
+  logstash:
+    build: logstash/
+    ports:
+      - "55044:55044"
+    networks:
+      - elastic
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.10.2
+    container_name: kibana
+    environment:
+      SERVER_NAME: kibana.h4t.eu
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+      #volumes:
+      #- ./kibana/kibana.yml:/usr/share/kibana/config/kibana.yml
+    #ports:
+      #- "5601:5601"
+    networks:
+      - elastic
+
+  reverse-proxy:
+    #image: nginx
+    #command: ['echo "admin:`openssl passwd password`" > /etc/nginx/htpasswd.users']
+    build: reverse-proxy/
+    volumes:
+      - ./reverse-proxy/nginx-kibana.conf:/etc/nginx/conf.d/nginx-kibana.conf
+    ports:
+      - 80:80
+    networks:
+      - elastic
+
+networks:
+  elastic:
+    driver: bridge
+
+volumes:
+  data01:
+    driver: local
